@@ -7,7 +7,7 @@ The Workers use multithreading to take advantage of processors with multiple cor
 
 ---
 
-##Workflow
+## Workflow
 
 1 master engine:
   - takes in task data
@@ -26,9 +26,9 @@ The Workers use multithreading to take advantage of processors with multiple cor
   - wait until all jobs are finished
   - gather results
   - merge and show
-  
+
 ## Getting Started
-1. Put your database credentials in __db_info.py__.
+1. Put your database credentials in __db.py__.
 2. Create a corresponding (empty) db in your database.
 3. Edit __sampleMasterMain.py__, pass your inputs and outputs to the **Master.createTable()** method. Then Set the inputs with the combination for each parameter
 4. Edit __sampleWorkerMain.py__, define your task execution function, and pass it to the **Worker.start()** method

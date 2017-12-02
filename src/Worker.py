@@ -1,13 +1,11 @@
-import _mysql
-import MySQLdb
 from random import randint
 import hashlib
 import time
 from contextlib import closing
-import db_info
-import threading 
+import threading
 import multiprocessing
 import sys
+from db import DB
 
 class Worker:
 
@@ -15,11 +13,10 @@ class Worker:
     self.wait = wait
     if numThreads < 1:
       cores = multiprocessing.cpu_count()
-      print "Setting number of threads to CPU cores: " + str(cores)
+      print("Setting number of threads to CPU cores: " + str(cores))
       numThreads = cores
-
     self.numThreads = numThreads
-    
+
 
   def start(self, function):
     for i in range(self.numThreads):
@@ -38,39 +35,37 @@ class WorkerThread (threading.Thread):
     self.name = name
     self.wait = wait
     self.function = function
-    self.DB = db_info.getConnection()
+    self.db = DB()
 
   def run(self):
     while True:
       try:
-        with closing( self.DB.cursor(MySQLdb.cursors.DictCursor) ) as cursor:
-          print self.name + ": checking for data"
-          # UPDATE ROW
-          cursor.execute(self.getProcessingQuery())
-          self.DB.commit()
+        print(self.name + ": checking for data")
+        # UPDATE ROW
+        self.db.execute(self.getProcessingQuery())
+        print("row updated")
 
-          # SELECT ROW
-          cursor.execute(self.getSelectReadyQuery())
-          self.processing = cursor.fetchall()
+        # SELECT ROW
+        self.processing = self.db.query(self.getSelectReadyQuery())
+        print(f"select row {self.processing}")
 
-          # PROCESS JOB
-          for combination in self.processing:
-            print self.name + ": processing data for id: " + str(combination['id'])
-            res = self.function(combination)
-            # SET RESULT & COMPLETE
-            cursor.execute(self.getCompleteQuery(res, combination['id']))
-            self.DB.commit()
+        # PROCESS JOB
+        for combination in self.processing:
+          print(combination)
+          print(self.name + ": processing data for id: " + str(combination['id']))
+          res = self.function(combination)
+          # SET RESULT & COMPLETE
+          self.db.execute(self.getCompleteQuery(res, combination['id']))
       except:
-        print self.name + ": an error occoured. Reconnecting..."
-        print "Unexpected error:", sys.exc_info()[0]
+        print(self.name + ": an error occoured. Reconnecting...")
+        print("Unexpected error:", sys.exc_info()[0])
         self.processing = []
-        cursor.close()
-        self.DB.close()
+        self.db.close()
         time.sleep(1)
-        self.DB = db_info.getConnection()
+        self.db = DB()
 
       if len(self.processing) == 0:
-        print self.name + ": no data found. Retrying in " + str(self.wait) + "s"
+        print(self.name + ": no data found. Retrying in " + str(self.wait) + "s")
         time.sleep(self.wait)
 
   def getProcessingQuery(self):
@@ -87,8 +82,8 @@ class WorkerThread (threading.Thread):
     query = '''UPDATE Input SET '''
     query += '''status = "complete",'''
     for key in res:
-      query += str(key) + ''' = "''' + str(res[key]) + '''",''' 
-    
+      query += str(key) + ''' = "''' + str(res[key]) + '''",'''
+
     query = query[:len(query)-1]
     query += ''' WHERE id=''' + str(rowId)
     return query
